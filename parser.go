@@ -75,11 +75,15 @@ func (p *parser) scanCommand(startWord string) (NginxConfigureCommand, error) {
 	if startWord != "" {
 		words.PushBack(startWord)
 	}
+	endSign := p.getEndSign(startWord)
 	var err error
 	var block NginxConfigureBlock
 ForLoop:
 	for {
 		token := p.scan()
+		if token.lit == endSign {
+			break ForLoop
+		}
 		switch token.typ {
 		case eof:
 			return emptyCommand, fmt.Errorf("missing terminating token at line %d", p.line)
@@ -88,8 +92,6 @@ ForLoop:
 			if err != nil {
 				return emptyCommand, err
 			}
-			break ForLoop
-		case semicolon:
 			break ForLoop
 		case comment:
 			continue
@@ -107,6 +109,14 @@ ForLoop:
 		cmd.Words[i] = word.Value.(string)
 	}
 	return cmd, nil
+}
+
+func (p *parser) getEndSign(startWord string) string {
+	switch startWord {
+	case commandSetByLuaBlock:
+		return "\n"
+	}
+	return semicolonToken.lit
 }
 
 func (p *parser) scanBlock() (NginxConfigureBlock, error) {
